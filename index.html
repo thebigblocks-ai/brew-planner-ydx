@@ -6,6 +6,7 @@
   <title>Планировщик ЦКТ</title>
   <style>
     :root {
+      --page-bg: linear-gradient(145deg, #eef9ff 0%, #f8fbff 42%, #edf2f7 72%, #dbe4ee 100%);
       --bg: #f3f4f6;
       --panel: #ffffff;
       --ink: #111827;
@@ -40,6 +41,7 @@
     }
 
     :root[data-theme="dark"] {
+      --page-bg: linear-gradient(145deg, #0d1726 0%, #111827 45%, #182235 72%, #223047 100%);
       --bg: #0f172a;
       --panel: #111827;
       --ink: #f8fafc;
@@ -66,7 +68,8 @@
       margin: 0;
       min-height: 100vh;
       color: var(--ink);
-      background: var(--bg);
+      background: var(--page-bg);
+      background-attachment: fixed;
     }
 
     body[data-auth="locked"] .app,
@@ -94,7 +97,7 @@
     .app {
       min-height: 100vh;
       display: grid;
-      grid-template-rows: auto auto 1fr;
+      grid-template-rows: auto auto auto 1fr;
     }
 
     .topbar {
@@ -286,6 +289,17 @@
       background: var(--panel);
       color: var(--ink);
       min-width: 132px;
+    }
+
+    input[type="number"] {
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
 
     textarea {
@@ -540,7 +554,10 @@
     .filter-check input {
       width: 14px;
       height: 14px;
+      min-width: 14px;
+      margin: 0;
       flex: 0 0 14px;
+      place-self: center;
       accent-color: var(--brand);
     }
 
@@ -602,13 +619,58 @@
       cursor: not-allowed;
     }
 
+    .summary-shell {
+      position: relative;
+      background: transparent;
+      border-bottom: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .summary-shell[data-expanded="false"] {
+      background: transparent;
+      border-top-color: transparent;
+      border-bottom-color: transparent;
+    }
+
+    .summary-toggle {
+      position: relative;
+      z-index: 2;
+      width: 42px;
+      height: 18px;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-top: 0;
+      border-radius: 0 0 8px 8px;
+      background: var(--panel);
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-toggle:hover {
+      color: var(--ink);
+      background: var(--soft-bg);
+    }
+
+    .summary-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .summary-shell[data-expanded="true"] .summary-toggle svg {
+      transform: rotate(180deg);
+    }
+
     .summary {
       display: grid;
       grid-template-columns: repeat(4, minmax(130px, 1fr));
       gap: 1px;
       padding: 0 24px;
-      background: var(--bg);
-      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-shell[data-expanded="false"] .summary {
+      display: none;
     }
 
     .bulk-actions {
@@ -694,7 +756,7 @@
       text-align: left;
     }
 
-    button.metric:hover {
+    .metric:hover {
       background: var(--soft-bg);
     }
 
@@ -1041,7 +1103,7 @@
     .planner-shell {
       min-width: 0;
       min-height: 0;
-      padding: 18px 0 24px 24px;
+      padding: 9px 0 24px 24px;
     }
 
     .planner {
@@ -1109,7 +1171,16 @@
       cursor: grab;
     }
 
+    .site-head[draggable="true"] {
+      cursor: grab;
+    }
+
     .tank-head.dragging {
+      opacity: 0.58;
+      cursor: grabbing;
+    }
+
+    .site-head.dragging {
       opacity: 0.58;
       cursor: grabbing;
     }
@@ -1120,6 +1191,14 @@
 
     .tank-head.drag-target-after {
       box-shadow: inset 0 -3px 0 var(--brand);
+    }
+
+    .site-head.drag-target-before {
+      box-shadow: inset 0 3px 0 var(--brand), inset 0 -1px 0 var(--line), inset 0 1px 0 var(--line-strong);
+    }
+
+    .site-head.drag-target-after {
+      box-shadow: inset 0 -3px 0 var(--brand), inset 0 1px 0 var(--line-strong);
     }
 
     .tank-head:hover,
@@ -1421,6 +1500,17 @@
     .cycle[data-selected="true"] {
       outline: 3px solid rgba(23, 32, 28, .78);
       outline-offset: 2px;
+    }
+
+    .cycle[data-related="true"] {
+      outline: 3px solid rgba(255, 139, 0, .94);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 3px rgba(255, 139, 0, .22), 0 10px 22px rgba(23, 32, 28, .18);
+    }
+
+    .cycle[data-selected="true"][data-related="true"] {
+      outline-color: rgba(23, 32, 28, .78);
+      box-shadow: 0 0 0 3px rgba(255, 139, 0, .28), 0 10px 22px rgba(23, 32, 28, .18);
     }
 
     .cycle[data-filtered-out="true"] {
@@ -1940,6 +2030,12 @@
     .status.error {
       color: var(--danger);
       font-weight: 750;
+    }
+
+    .status.error[data-attention="true"] {
+      border-radius: 6px;
+      outline: 2px solid color-mix(in srgb, var(--danger) 34%, transparent);
+      outline-offset: 3px;
     }
 
     .template-row {
@@ -2757,9 +2853,9 @@
       box-shadow: none;
     }
 
-    .summary {
+    .summary-shell {
       gap: 1px;
-      background: var(--bg);
+      background: transparent;
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
     }
@@ -2769,7 +2865,7 @@
       box-shadow: none;
     }
 
-    button.metric:hover {
+    .metric:hover {
       background: var(--soft-bg);
     }
 
@@ -2960,7 +3056,7 @@
       .topbar {
         align-items: stretch;
         flex-direction: column;
-        padding: 14px;
+        padding: 7px 14px 14px;
       }
 
       .topbar-left,
@@ -3023,6 +3119,11 @@
       .summary {
         grid-template-columns: repeat(2, 1fr);
         padding: 0 14px;
+      }
+
+      .summary-toggle {
+        width: 42px;
+        height: 18px;
       }
 
       .planner-shell {
@@ -3219,17 +3320,22 @@
       <span class="brand-version" id="appVersionBadge" title="Версия приложения"></span>
     </header>
 
-    <section class="summary" aria-label="Сводка">
-      <div class="metric"><span class="metric-label" id="metricCyclesLabel">Занято ЦКТ на сегодня</span><strong id="metricCycles">0</strong></div>
-      <button class="metric" id="metricLoadButton" type="button"><span class="metric-label">ГП в ЦКТ</span><strong id="metricLoad">0 л</strong></button>
-      <button class="metric" id="periodSummaryButton" type="button" data-active="false">
-        <span class="metric-label" id="metricFreeLabel"></span>
-        <strong id="metricFree"></strong>
+    <section class="summary-shell" id="summaryShell" data-expanded="false" aria-label="Сводка">
+      <button class="summary-toggle" id="summaryToggleButton" type="button" aria-expanded="false" aria-controls="summaryPanel" aria-label="Показать сводку">
+        <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
       </button>
-      <button class="metric" id="attentionButton" type="button" data-active="false">
-        <span class="metric-label">Требуют внимания</span>
-        <strong id="metricAttention">0</strong>
-      </button>
+      <div class="summary" id="summaryPanel">
+        <div class="metric"><span class="metric-label" id="metricCyclesLabel">Занято ЦКТ на сегодня</span><strong id="metricCycles">0</strong></div>
+        <button class="metric" id="metricLoadButton" type="button"><span class="metric-label">ГП в ЦКТ</span><strong id="metricLoad">0 л</strong></button>
+        <button class="metric" id="periodSummaryButton" type="button" data-active="false">
+          <span class="metric-label" id="metricFreeLabel"></span>
+          <strong id="metricFree"></strong>
+        </button>
+        <button class="metric" id="attentionButton" type="button" data-active="false">
+          <span class="metric-label">Требуют внимания</span>
+          <strong id="metricAttention">0</strong>
+        </button>
+      </div>
     </section>
 
     <section class="bulk-actions" id="bulkActions" hidden aria-label="Групповые действия">
@@ -3658,6 +3764,10 @@
       <p id="commentModalText">Комментарий будет привязан к выбранному месту цикла.</p>
       <div class="form">
         <label class="field">
+          <span>Дата</span>
+          <input id="commentDateInput" type="date">
+        </label>
+        <label class="field">
           <span>Комментарий</span>
           <textarea id="commentInput" placeholder="Например: контроль плотности"></textarea>
         </label>
@@ -3682,8 +3792,8 @@
   <div class="comment-tooltip" id="commentTooltip"></div>
 
   <script>
-    window.BREW_PLANNER_BACKEND_MODE = "yandex";
-    window.BREW_PLANNER_YANDEX_API_BASE_URL = "https://d5d9i7sr7b8mehoelc4k.y3q8o1jq.apigw.yandexcloud.net";
+    window.BREW_PLANNER_BACKEND_MODE = window.BREW_PLANNER_BACKEND_MODE || "supabase";
+    window.BREW_PLANNER_YANDEX_API_BASE_URL = window.BREW_PLANNER_YANDEX_API_BASE_URL || "";
     if (window.BREW_PLANNER_BACKEND_MODE !== "yandex") {
       document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
     }
@@ -3703,7 +3813,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.16.7";
+    const appVersion = "v2026.06.18.16";
     const storageKey = "production-planner-v1";
     const backendMode = window.BREW_PLANNER_BACKEND_MODE || "supabase"; // Для параллельного Yandex-контура: "yandex"
     const yandexApiBaseUrl = window.BREW_PLANNER_YANDEX_API_BASE_URL || ""; // Например: "https://xxxx.apigw.yandexcloud.net"
@@ -3759,6 +3869,7 @@
     let supportsTemplateArchive = false;
     let pendingDelete = null;
     let loadDiagnostics = [];
+    let baseGridRenderKey = "";
 
     function newId() {
       return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -3797,6 +3908,14 @@
       } finally {
         recordLoadStep(label, startedAt);
       }
+    }
+
+    function withTimeout(promise, timeoutMs, message) {
+      let timeoutId;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
     }
 
     function setLoginBusy(busy) {
@@ -3928,25 +4047,33 @@
     }
 
     function savePlan() {
-      if (!canEdit()) return;
+      if (!canEdit()) return Promise.resolve(false);
       if (isYandexBackend && remoteReady) {
-        savePlanToYandex();
-        return;
+        return savePlanToYandex();
       }
       if (db && remoteReady) {
-        savePlanToSupabase();
-        return;
+        return savePlanToSupabase();
       }
       try {
         localStorage.setItem(storageKey, JSON.stringify({ sites, tanks, cycles, productTemplates }));
+        return Promise.resolve(true);
       } catch {
         formStatus.className = "status error";
         formStatus.textContent = "Не удалось сохранить изменения в браузере";
+        return Promise.resolve(false);
       }
     }
 
     function clonePlanData() {
       return JSON.parse(JSON.stringify({ sites, tanks, cycles, productTemplates }));
+    }
+
+    function restorePlanDataSnapshot(snapshot) {
+      if (!snapshot) return;
+      sites = snapshot.sites || [];
+      tanks = snapshot.tanks || [];
+      cycles = snapshot.cycles || [];
+      productTemplates = normalizeProductTemplates(snapshot.productTemplates || []);
     }
 
     function updateUndoButton() {
@@ -4360,7 +4487,7 @@
     async function savePlanToYandex() {
       if (savingPlan) {
         saveQueued = true;
-        return;
+        return false;
       }
       savingPlan = true;
       suppressRealtimeUntil = Date.now() + 2500;
@@ -4375,10 +4502,12 @@
           if (data.plan) applyPlanData(data.plan);
         } while (saveQueued);
         setSyncStatus("Сохранено", "saved");
+        return true;
       } catch (error) {
         setSyncStatus("Ошибка", "error");
         formStatus.className = "status error";
         formStatus.textContent = `Не удалось сохранить в Yandex API: ${error.message}`;
+        return false;
       } finally {
         savingPlan = false;
       }
@@ -4477,7 +4606,7 @@
     async function savePlanToSupabase() {
       if (savingPlan) {
         saveQueued = true;
-        return;
+        return false;
       }
       savingPlan = true;
       suppressRealtimeUntil = Date.now() + 2500;
@@ -4535,10 +4664,12 @@
           }
         } while (saveQueued);
         setSyncStatus("Сохранено", "saved");
+        return true;
       } catch (error) {
         setSyncStatus("Ошибка", "error");
         formStatus.className = "status error";
         formStatus.textContent = `Не удалось сохранить в общей базе: ${error.message}`;
+        return false;
       } finally {
         savingPlan = false;
       }
@@ -4675,6 +4806,7 @@
       zoom: "day",
       zoomStep: 0,
       view: "compact",
+      summaryExpanded: false,
       bottlingHorizonDays: 14,
       panelMode: "hidden",
       selectedCycleId: null,
@@ -4691,6 +4823,9 @@
         packaging: false
       },
       collapsedSites: {},
+      siteOrder: [],
+      draggedSiteId: null,
+      dragTargetSiteId: null,
       draggedTankId: null,
       dragTargetTankId: null,
       dragTargetPosition: "",
@@ -4712,6 +4847,8 @@
     const appVersionBadge = document.querySelector("#appVersionBadge");
     const workspace = document.querySelector("#workspace");
     const planner = document.querySelector("#planner");
+    const summaryShell = document.querySelector("#summaryShell");
+    const summaryToggleButton = document.querySelector("#summaryToggleButton");
     const rangeSelect = document.querySelector("#rangeSelect");
     const startInput = document.querySelector("#startInput");
     const zoomButtons = document.querySelector("#zoomButtons");
@@ -4843,6 +4980,7 @@
     const commentModal = document.querySelector("#commentModal");
     const commentModalTitle = document.querySelector("#commentModalTitle");
     const commentModalText = document.querySelector("#commentModalText");
+    const commentDateInput = document.querySelector("#commentDateInput");
     const commentInput = document.querySelector("#commentInput");
     const commentTemplates = document.querySelector("#commentTemplates");
     const cancelCommentButton = document.querySelector("#cancelCommentButton");
@@ -4882,6 +5020,7 @@
     let dragState = null;
     let pendingCycleChange = null;
     let suppressCycleClick = false;
+    let cycleClickTimer = null;
 
     function setEditable(elements, editable) {
       elements.forEach((element) => {
@@ -4898,7 +5037,7 @@
       const editable = canEdit();
       const admin = canAdmin();
       setEditable([addMenuButton, addBrewButton, addCommentButton, addTankButton, addSiteButton, submitCycleButton], editable);
-      setEditable([saveCommentButton, deleteCommentButton, confirmDeleteButton, confirmMoveButton, saveCycleChangesButton, copyCycleButton, deriveCycleButton], editable);
+      setEditable([commentDateInput, commentInput, saveCommentButton, deleteCommentButton, confirmDeleteButton, confirmMoveButton, saveCycleChangesButton, copyCycleButton, deriveCycleButton], editable);
       setEditable([bulkStageInput, bulkApplyStageButton, bulkShiftDaysInput, bulkMoveButton, bulkDeleteButton, bulkClearButton], editable);
       deriveCycleButton.disabled = !editable || !state.selectedCycleId;
       copyCycleButton.disabled = !editable || !state.selectedCycleId;
@@ -5505,6 +5644,52 @@
         .reduce((sum, cycle) => sum + Number(cycle.plannedOutput || 0), 0);
     }
 
+    function descendantCycleIds(sourceCycleId) {
+      const descendants = new Set();
+      if (!sourceCycleId) return descendants;
+      let changed = true;
+      while (changed) {
+        changed = false;
+        cycles.forEach((cycle) => {
+          if (!cycle.sourceCycleId) return;
+          if (cycle.sourceCycleId !== sourceCycleId && !descendants.has(cycle.sourceCycleId)) return;
+          if (cycle.id === sourceCycleId || descendants.has(cycle.id)) return;
+          descendants.add(cycle.id);
+          changed = true;
+        });
+      }
+      return descendants;
+    }
+
+    function wouldCreateSourceCycleLoop(cycleId, sourceCycleId) {
+      if (!cycleId || !sourceCycleId) return false;
+      if (cycleId === sourceCycleId) return true;
+      let currentId = sourceCycleId;
+      const visited = new Set();
+      while (currentId) {
+        if (currentId === cycleId) return true;
+        if (visited.has(currentId)) return true;
+        visited.add(currentId);
+        currentId = cycles.find((cycle) => cycle.id === currentId)?.sourceCycleId || "";
+      }
+      return false;
+    }
+
+    function relatedCycleIdsForSelection() {
+      const relatedIds = new Set();
+      const selected = cycles.find((cycle) => cycle.id === state.selectedCycleId);
+      if (!selected) return relatedIds;
+      relatedIds.add(selected.id);
+      if (selected.sourceCycleId) {
+        relatedIds.add(selected.sourceCycleId);
+        return relatedIds;
+      }
+      cycles.forEach((cycle) => {
+        if (cycle.sourceCycleId === selected.id) relatedIds.add(cycle.id);
+      });
+      return relatedIds;
+    }
+
     function productionOutputForCycle(cycle) {
       return Math.max(0, remainingOutputForCycle(cycle) - derivedOutputForCycle(cycle.id));
     }
@@ -5660,10 +5845,16 @@
     }
 
     function sortedProductNames() {
+      const archivedProductNames = new Set(
+        productTemplates
+          .filter((template) => template.archived)
+          .map((template) => normalizeName(template.name))
+          .filter(Boolean)
+      );
       return Array.from(new Set(
         cycles.map((cycle) => cycle.product).concat(productTemplates.filter((template) => !template.archived).map((template) => template.name))
           .map((name) => String(name || "").trim())
-          .filter(Boolean)
+          .filter((name) => Boolean(name) && !archivedProductNames.has(normalizeName(name)))
       )).sort((a, b) => a.localeCompare(b, "ru"));
     }
 
@@ -5733,7 +5924,7 @@
           return `
             <div class="partial-bottling-log-row" data-partial-id="${escapeHtml(item.id)}">
               <span>${shortNumericDateFormatter.format(parseDate(item.date))}</span>
-              <span>${formatNumber(canQty)} шт / ${formatLiters(canLiters)} л</span>
+              <span>${formatNumber(canQty)} шт</span>
               <span>${formatLiters(kegLiters)} л</span>
               <strong>${formatLiters(total)} л</strong>
               <span class="partial-bottling-actions">
@@ -5950,7 +6141,7 @@
         ".view-controls"
       ].join(",");
       if (target.closest(activeSelector)) return false;
-      return Boolean(target.closest(".planner-shell") || target.closest(".main") || target === document.body);
+      return Boolean(target.closest(".planner-shell") || target.closest(".topbar") || target.closest(".toolbar") || target.closest(".app") || target === document.body);
     }
 
     function handleCycleEditorOutsideClick(event) {
@@ -5989,7 +6180,7 @@
         ".view-controls"
       ].join(",");
       if (target.closest(activeSelector)) return false;
-      return Boolean(target.closest(".planner-shell") || target.closest("aside") || target === document.body);
+      return Boolean(target.closest(".planner-shell") || target.closest(".topbar") || target.closest(".toolbar") || target.closest(".app") || target === document.body);
     }
 
     function handlePanelOutsideClick(event) {
@@ -6034,7 +6225,7 @@
         "aside"
       ].join(",");
       if (target.closest(activeSelector)) return false;
-      return Boolean(target.closest(".planner-shell") || target.closest(".main") || target === document.body);
+      return Boolean(target.closest(".planner-shell") || target.closest(".topbar") || target.closest(".toolbar") || target.closest(".app") || target === document.body);
     }
 
     function handleSelectedDateOutsideClick(event) {
@@ -6250,11 +6441,11 @@
         });
       });
       templateList.querySelectorAll("[data-archive-template]").forEach((button) => {
-        button.addEventListener("click", (event) => {
+        button.addEventListener("click", async (event) => {
           if (!requireEdit()) return;
           const template = productTemplates.find((item) => item.id === event.currentTarget.dataset.archiveTemplate);
           if (!template) return;
-          archiveProductTemplate(template);
+          await archiveProductTemplate(template);
         });
       });
     }
@@ -6268,15 +6459,55 @@
       selectedRow.insertAdjacentElement("afterend", templateForm);
     }
 
-    function archiveProductTemplate(template) {
-      pushUndoSnapshot(template.archived ? "возврат шаблона из архива" : "архивирование шаблона");
-      template.archived = !template.archived;
+    async function saveTemplateArchiveState(template) {
+      if (db && remoteReady && !isYandexBackend) {
+        if (!supportsTemplateArchive) {
+          throw new Error("в таблице product_templates нет поля is_archived. Нужно добавить его в Supabase");
+        }
+        setSyncStatus("Сохраняем", "saving");
+        const { error } = await db
+          .from("product_templates")
+          .update({ is_archived: Boolean(template.archived) })
+          .eq("id", template.id);
+        if (error) throw error;
+        supportsTemplateArchive = true;
+        setSyncStatus("Сохранено", "saved");
+        return true;
+      }
+      return savePlan();
+    }
+
+    function templateArchiveErrorText(error) {
+      const message = String(error?.message || error || "");
+      if (/is_archived|schema cache|column/i.test(message)) {
+        return "Не удалось сохранить архив: в таблице product_templates нет поля is_archived. Нужно добавить его в Supabase.";
+      }
+      if (/row-level security|policy|permission|not authorized|forbidden|401|403/i.test(message)) {
+        return "Не удалось сохранить архив: Supabase не разрешил обновление product_templates. Проверь права/RLS для таблицы.";
+      }
+      return `Не удалось сохранить архив: ${message}`;
+    }
+
+    async function archiveProductTemplate(template) {
+      const previousArchived = Boolean(template.archived);
+      const nextArchived = !previousArchived;
+      pushUndoSnapshot(nextArchived ? "архивирование шаблона" : "возврат шаблона из архива");
+      template.archived = nextArchived;
       if (state.selectedTemplateId === template.id) resetTemplateForm();
-      savePlan();
-      logAction(template.archived ? "template_archived" : "template_restored", "template", template.id, template.name);
-      templateStatus.className = "status";
-      templateStatus.textContent = template.archived ? "Шаблон перемещен в архив" : "Шаблон возвращен из архива";
       render();
+      try {
+        const saved = await saveTemplateArchiveState(template);
+        if (!saved) throw new Error("сохранение не завершилось");
+        logAction(template.archived ? "template_archived" : "template_restored", "template", template.id, template.name);
+        templateStatus.className = "status";
+        templateStatus.textContent = template.archived ? "Шаблон перемещен в архив" : "Шаблон возвращен из архива";
+      } catch (error) {
+        template.archived = previousArchived;
+        templateStatus.className = "status error";
+        templateStatus.textContent = templateArchiveErrorText(error);
+        setSyncStatus("Ошибка", "error");
+        render();
+      }
     }
 
     function templateFormSnapshot() {
@@ -6337,7 +6568,7 @@
 
     function visibleRows() {
       const rows = [];
-      sites.forEach((site) => {
+      orderedSites().forEach((site) => {
         const siteTanks = tanks.filter((tank) => tank.siteId === site.id);
         rows.push({ type: "site", site, count: siteTanks.length });
         if (!state.collapsedSites[site.id]) {
@@ -6353,6 +6584,72 @@
 
     function tankAtVisibleIndex(index) {
       return visibleRows().filter((row) => row.type === "tank")[index]?.tank;
+    }
+
+    function currentUserUiStorageKey() {
+      const userKey = currentUser?.id || currentUser?.login || currentUser?.email || "anonymous";
+      return `${uiStorageKey}:${userKey}`;
+    }
+
+    function normalizedSiteOrder(order = state.siteOrder) {
+      const knownIds = new Set(sites.map((site) => site.id));
+      const nextOrder = [];
+      (Array.isArray(order) ? order : []).forEach((id) => {
+        if (knownIds.has(id) && !nextOrder.includes(id)) nextOrder.push(id);
+      });
+      sites.forEach((site) => {
+        if (!nextOrder.includes(site.id)) nextOrder.push(site.id);
+      });
+      return nextOrder;
+    }
+
+    function orderedSites() {
+      const siteById = new Map(sites.map((site) => [site.id, site]));
+      return normalizedSiteOrder()
+        .map((id) => siteById.get(id))
+        .filter(Boolean);
+    }
+
+    function loadUserUiPreferences() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(currentUserUiStorageKey()));
+        state.siteOrder = normalizedSiteOrder(saved?.siteOrder || []);
+      } catch {
+        state.siteOrder = normalizedSiteOrder([]);
+      }
+    }
+
+    function saveUserUiPreferences() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(currentUserUiStorageKey())) || {};
+        localStorage.setItem(currentUserUiStorageKey(), JSON.stringify({
+          ...saved,
+          siteOrder: normalizedSiteOrder()
+        }));
+      } catch {
+        // Персональная настройка порядка площадок не должна мешать работе планировщика.
+      }
+    }
+
+    function clearSiteDragState() {
+      state.draggedSiteId = null;
+      state.dragTargetSiteId = null;
+      state.dragTargetPosition = "";
+    }
+
+    function moveSiteForCurrentUser(draggedSiteId, targetSiteId, position) {
+      if (!draggedSiteId || !targetSiteId || draggedSiteId === targetSiteId) return false;
+      const order = normalizedSiteOrder();
+      const draggedIndex = order.indexOf(draggedSiteId);
+      if (draggedIndex < 0 || !order.includes(targetSiteId)) return false;
+      order.splice(draggedIndex, 1);
+      const targetIndex = order.indexOf(targetSiteId);
+      const insertIndex = position === "after" ? targetIndex + 1 : targetIndex;
+      order.splice(insertIndex, 0, draggedSiteId);
+      state.siteOrder = normalizedSiteOrder(order);
+      saveUserUiPreferences();
+      render();
+      return true;
     }
 
     function clearTankDragState() {
@@ -6380,7 +6677,7 @@
     }
 
     function renderSiteOptions() {
-      tankSiteInput.innerHTML = sites.map((site) => `<option value="${site.id}">${site.name}</option>`).join("");
+      tankSiteInput.innerHTML = orderedSites().map((site) => `<option value="${site.id}">${site.name}</option>`).join("");
     }
 
     function applyTheme(theme) {
@@ -6502,13 +6799,38 @@
       return groups;
     }
 
+    function clearDynamicGridElements() {
+      grid.querySelectorAll(":scope > .cycle, :scope > .today-day, :scope > .selected-day, :scope > .picked-cell").forEach((item) => item.remove());
+    }
+
+    function baseGridKeyFor(dates, rows) {
+      return JSON.stringify({
+        start: state.start,
+        range: state.range,
+        zoom: state.zoom,
+        view: state.view,
+        selectedTankId: state.selectedTankId,
+        selectedSiteId: state.selectedSiteId,
+        canEdit: canEdit(),
+        dates: [toISO(dates[0]), toISO(dates[dates.length - 1]), dates.length],
+        collapsedSites: state.collapsedSites,
+        rows: rows.map((row) => row.type === "tank"
+          ? ["tank", row.tank.id, row.tank.name, row.tank.volume, row.tank.siteId]
+          : [row.type, row.site?.id || "", row.site?.name || "", row.count || 0])
+      });
+    }
+
     function renderBaseGrid(dates) {
-      grid.innerHTML = "";
+      const rows = visibleRows();
+      clearDynamicGridElements();
       grid.dataset.addMode = state.addMode ? "true" : "false";
       grid.dataset.commentMode = state.commentMode ? "true" : "false";
       grid.dataset.scale = state.zoom;
       grid.dataset.view = state.view;
-      const rows = visibleRows();
+      const nextGridKey = baseGridKeyFor(dates, rows);
+      if (baseGridRenderKey === nextGridKey) return;
+      baseGridRenderKey = nextGridKey;
+      grid.innerHTML = "";
       const bottomSpacerRows = 1;
       grid.style.setProperty("--tank-count", rows.length + bottomSpacerRows);
       grid.style.setProperty("--day-count", dates.length);
@@ -6602,6 +6924,15 @@
           head.dataset.selected = state.selectedSiteId === row.site.id ? "true" : "false";
           head.setAttribute("role", "button");
           head.setAttribute("tabindex", "0");
+          if (currentUser) {
+            head.setAttribute("draggable", "true");
+          }
+          if (state.draggedSiteId === row.site.id) {
+            head.classList.add("dragging");
+          }
+          if (state.dragTargetSiteId === row.site.id && state.dragTargetPosition) {
+            head.classList.add(state.dragTargetPosition === "after" ? "drag-target-after" : "drag-target-before");
+          }
           head.innerHTML = `
             <button type="button" data-toggle-site aria-label="Свернуть или развернуть площадку">${state.collapsedSites[row.site.id] ? "▸" : "▾"}</button>
             <div class="site-title"><b>${row.site.name}</b><span>${formatNumber(row.count)} ЦКТ</span></div>
@@ -6611,7 +6942,58 @@
             state.collapsedSites[row.site.id] = !state.collapsedSites[row.site.id];
             render();
           });
-          head.addEventListener("click", () => openSiteCard(row.site));
+          head.addEventListener("click", (event) => {
+            if (head.dataset.dragMoved === "true") {
+              event.preventDefault();
+              head.dataset.dragMoved = "";
+              return;
+            }
+            openSiteCard(row.site);
+          });
+          head.addEventListener("dragstart", (event) => {
+            if (!currentUser) {
+              event.preventDefault();
+              return;
+            }
+            state.draggedSiteId = row.site.id;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", row.site.id);
+            head.classList.add("dragging");
+          });
+          head.addEventListener("dragover", (event) => {
+            if (!state.draggedSiteId || state.draggedSiteId === row.site.id) return;
+            event.preventDefault();
+            const rect = head.getBoundingClientRect();
+            const position = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+            if (state.dragTargetSiteId !== row.site.id || state.dragTargetPosition !== position) {
+              document.querySelectorAll(".site-head.drag-target-before, .site-head.drag-target-after").forEach((item) => {
+                item.classList.remove("drag-target-before", "drag-target-after");
+              });
+              state.dragTargetSiteId = row.site.id;
+              state.dragTargetPosition = position;
+              head.classList.add(position === "after" ? "drag-target-after" : "drag-target-before");
+            }
+          });
+          head.addEventListener("dragleave", () => {
+            if (state.dragTargetSiteId !== row.site.id) return;
+            state.dragTargetSiteId = null;
+            state.dragTargetPosition = "";
+            head.classList.remove("drag-target-before", "drag-target-after");
+          });
+          head.addEventListener("drop", (event) => {
+            event.preventDefault();
+            const draggedId = event.dataTransfer.getData("text/plain") || state.draggedSiteId;
+            const moved = moveSiteForCurrentUser(draggedId, row.site.id, state.dragTargetPosition || "before");
+            clearSiteDragState();
+            head.dataset.dragMoved = moved ? "true" : "";
+            render();
+          });
+          head.addEventListener("dragend", () => {
+            clearSiteDragState();
+            document.querySelectorAll(".site-head.dragging, .site-head.drag-target-before, .site-head.drag-target-after").forEach((item) => {
+              item.classList.remove("dragging", "drag-target-before", "drag-target-after");
+            });
+          });
           head.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -6720,12 +7102,23 @@
             grid.append(slot);
             return;
           }
-          slot.addEventListener("click", () => {
+          slot.addEventListener("click", (event) => {
             if (tank && state.addMode) {
+              event.stopPropagation();
               pickProductionStart(tank.id, toISO(date));
               return;
             }
+            if (state.commentMode) {
+              event.stopPropagation();
+              return;
+            }
             if (!state.commentMode) clearSelectedDateColumn();
+          });
+          slot.addEventListener("dblclick", (event) => {
+            if (!tank || !canEdit()) return;
+            event.preventDefault();
+            event.stopPropagation();
+            prepareBrewFromGridCell(tank.id, toISO(date));
           });
           grid.append(slot);
         });
@@ -6766,8 +7159,10 @@
       const conflicts = conflictIds();
       const startDate = parseDate(state.start);
       const visibleEnd = addDays(startDate, state.range - 1);
+      const visible = visibleCycles();
+      const relatedCycleIds = relatedCycleIdsForSelection();
 
-      visibleCycles().forEach((cycle) => {
+      visible.forEach((cycle) => {
         const tankIndex = tankRowIndex(cycle.tankId);
         if (tankIndex < 0) return;
 
@@ -6779,9 +7174,11 @@
         const item = document.createElement("button");
         item.type = "button";
         item.className = "cycle";
+        item.dataset.cycleId = cycle.id;
         item.dataset.conflict = conflicts.has(cycle.id) ? "true" : "false";
         const isMultiSelected = state.selectedCycleIds instanceof Set && state.selectedCycleIds.has(cycle.id);
         item.dataset.selected = state.selectedCycleId === cycle.id || isMultiSelected ? "true" : "false";
+        item.dataset.related = relatedCycleIds.has(cycle.id) ? "true" : "false";
         item.dataset.filteredOut = cycleMatchesFilters(cycle) ? "false" : "true";
         item.style.left = `calc(var(--tank-label) + ${offset} * var(--day-col))`;
         item.style.top = `calc(var(--header-total) + ${tankIndex} * var(--tank-row))`;
@@ -6826,7 +7223,20 @@
             toggleCycleMultiSelection(cycle.id);
             return;
           }
-          fillForm(cycle);
+          clearTimeout(cycleClickTimer);
+          cycleClickTimer = setTimeout(() => {
+            cycleClickTimer = null;
+            fillForm(cycle);
+          }, 260);
+        });
+        item.addEventListener("dblclick", (event) => {
+          if (!canEdit()) return;
+          if (event.target.closest("[data-resize]")) return;
+          event.preventDefault();
+          event.stopPropagation();
+          clearTimeout(cycleClickTimer);
+          cycleClickTimer = null;
+          openCommentModal(cycle, event);
         });
         grid.append(item);
       });
@@ -7030,6 +7440,9 @@
       state.pickedDate = date;
       commentModalTitle.textContent = "Добавить комментарий";
       commentModalText.textContent = `${cycle.product} · ${date}`;
+      commentDateInput.min = cycle.start;
+      commentDateInput.max = cycle.end;
+      commentDateInput.value = date;
       commentInput.value = "";
       deleteCommentButton.style.display = "none";
       render();
@@ -7040,11 +7453,17 @@
     function openExistingCommentModal(cycle, comment) {
       if (!requireEdit()) return;
       hideCommentTooltip();
-      state.pendingComment = { mode: "edit", cycleId: cycle.id, commentId: comment.id };
+      state.pendingComment = { mode: "edit", cycleId: cycle.id, commentId: comment.id, date: comment.date };
+      state.pickedTankId = cycle.tankId;
+      state.pickedDate = comment.date;
       commentModalTitle.textContent = "Редактировать комментарий";
       commentModalText.textContent = `${cycle.product} · ${comment.date}`;
+      commentDateInput.min = cycle.start;
+      commentDateInput.max = cycle.end;
+      commentDateInput.value = comment.date;
       commentInput.value = comment.text;
       deleteCommentButton.style.display = "inline-flex";
+      renderPickedCell();
       commentModal.classList.add("open");
       commentInput.focus();
     }
@@ -7593,6 +8012,10 @@
       const horizonDays = Number(state.bottlingHorizonDays || 14);
       const periodEnd = toISO(addDays(appToday(), horizonDays - 1));
       const upcoming = bottlingEvents()
+        .filter((event) => {
+          const cycle = cycles.find((item) => item.id === event.cycleId);
+          return cycle && normalizeStage(cycle.stage) !== "План";
+        })
         .filter((event) => event.date >= periodStart && event.date <= periodEnd)
         .sort((a, b) => a.date.localeCompare(b.date) || a.product.localeCompare(b.product, "ru"));
       const periodTotal = upcoming.reduce((sum, event) => {
@@ -7794,6 +8217,7 @@
     function render() {
       applyAutomaticStages({ save: true });
       setZoom();
+      renderSummaryVisibility();
       const dates = getDates();
       deriveCycleButton.disabled = !state.selectedCycleId || !canEdit();
       copyCycleButton.disabled = !state.selectedCycleId || !canEdit();
@@ -7816,15 +8240,15 @@
       renderPickedCell();
       renderMetrics();
       renderBulkActions();
-      renderBottlingList();
-      renderWarehouseCalendar();
+      if (state.panelMode === "bottlings") renderBottlingList();
+      if (state.panelMode === "warehouse") renderWarehouseCalendar();
       renderTankOptions();
       renderSourceCycleOptions();
       renderSiteOptions();
       renderTemplateOptions();
-      renderTemplateList();
-      renderUsers();
-      renderActionLog();
+      if (state.panelMode === "templates") renderTemplateList();
+      if (state.panelMode === "users") renderUsers();
+      if (state.panelMode === "log") renderActionLog();
       updateTankPanelState();
       applyAccessControl();
       initializeFastTooltips();
@@ -7853,9 +8277,43 @@
       cell.style.height = "var(--tank-row)";
     }
 
+    function cycleElementFor(cycleId) {
+      return Array.from(grid.querySelectorAll(":scope > .cycle"))
+        .find((element) => element.dataset.cycleId === String(cycleId)) || null;
+    }
+
+    function plannerHeaderHeight() {
+      return numberFromVar("--header-year")
+        + numberFromVar("--header-month")
+        + numberFromVar("--header-week")
+        + numberFromVar("--header-day");
+    }
+
+    function centerCycleInPlanner(cycleId) {
+      const element = cycleElementFor(cycleId);
+      if (!element) return;
+      const tankLabelWidth = numberFromVar("--tank-label");
+      const headerHeight = plannerHeaderHeight();
+      const safeWidth = Math.max(1, planner.clientWidth - tankLabelWidth);
+      const safeHeight = Math.max(1, planner.clientHeight - headerHeight);
+      const maxLeft = Math.max(0, planner.scrollWidth - planner.clientWidth);
+      const maxTop = Math.max(0, planner.scrollHeight - planner.clientHeight);
+      const cycleCenterX = element.offsetLeft + element.offsetWidth / 2;
+      const cycleCenterY = element.offsetTop + element.offsetHeight / 2;
+      const left = clamp(cycleCenterX - tankLabelWidth - safeWidth / 2, 0, maxLeft);
+      const top = clamp(cycleCenterY - headerHeight - safeHeight / 2, 0, maxTop);
+      planner.scrollTo({ left, top, behavior: "smooth" });
+    }
+
+    function scheduleCenterCycleInPlanner(cycleId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => centerCycleInPlanner(cycleId));
+      });
+    }
+
     function renderTankOptions() {
       const currentValue = tankInput.value;
-      tankInput.innerHTML = sites.map((site) => {
+      tankInput.innerHTML = orderedSites().map((site) => {
         const options = tanks
           .filter((tank) => tank.siteId === site.id)
           .map((tank) => `<option value="${tank.id}">${tank.name} · ${tank.volume}</option>`)
@@ -7875,13 +8333,14 @@
     function renderSourceCycleOptions() {
       const currentValue = sourceCycleInput.value;
       const selectedCycleId = state.selectedCycleId;
+      const blockedIds = descendantCycleIds(selectedCycleId);
       const options = cycles
-        .filter((cycle) => cycle.id !== selectedCycleId && cycle.sourceCycleId !== selectedCycleId)
+        .filter((cycle) => cycle.id !== selectedCycleId && !blockedIds.has(cycle.id))
         .sort((a, b) => b.start.localeCompare(a.start) || a.product.localeCompare(b.product, "ru"))
         .map((cycle) => `<option value="${cycle.id}">${escapeHtml(cycleSourceLabel(cycle))}</option>`)
         .join("");
       sourceCycleInput.innerHTML = `<option value="">Не выбран</option>${options}`;
-      sourceCycleInput.value = cycles.some((cycle) => cycle.id === currentValue && cycle.id !== selectedCycleId) ? currentValue : "";
+      sourceCycleInput.value = cycles.some((cycle) => cycle.id === currentValue && cycle.id !== selectedCycleId && !blockedIds.has(cycle.id)) ? currentValue : "";
     }
 
     function updateTankPanelState() {
@@ -7965,7 +8424,7 @@
       render();
     }
 
-    function saveCycleFromForm() {
+    async function saveCycleFromForm() {
       if (!requireEdit()) return false;
       if (!cycleEndInput.value) syncCycleDates("duration");
       const start = cycleStartInput.value;
@@ -7984,6 +8443,21 @@
       if (showPackagingWarning()) return false;
       const existingCycle = cycles.find((cycle) => cycle.id === state.selectedCycleId);
       const sourceCycleId = sourceCycleInput.value;
+      if (sourceCycleId && db && remoteReady && !isYandexBackend && !supportsSourceCycles) {
+        formStatus.className = "status error";
+        formStatus.textContent = "Связь с исходным циклом не сохранится: в Supabase нет поля source_cycle_id. Нужно выполнить SQL из supabase/add_source_cycles.sql";
+        return false;
+      }
+      if (sourceCycleId && !cycles.some((cycle) => cycle.id === sourceCycleId)) {
+        formStatus.className = "status error";
+        formStatus.textContent = "Исходный цикл не найден. Обновите страницу и выберите исходный цикл заново";
+        return false;
+      }
+      if (wouldCreateSourceCycleLoop(state.selectedCycleId, sourceCycleId)) {
+        formStatus.className = "status error";
+        formStatus.textContent = "Нельзя создать кольцевую связь: цикл не может быть создан на основе самого себя или своего производного";
+        return false;
+      }
       const partialBottling = partialBottlingFromForm();
       const partialLiters = Number(partialBottling.can045.liters || 0) + Number(partialBottling.keg20.liters || 0);
       if (sourceCycleId) {
@@ -8000,6 +8474,7 @@
         formStatus.textContent = `Объем производных сортов превышает плановый выход исходного цикла на ${formatLiters(derivedOutputForCycle(state.selectedCycleId) - numberValue(plannedOutputInput))} л`;
         return false;
       }
+      const beforeSaveSnapshot = clonePlanData();
       if (existingCycle) {
         const editingPartial = partialBottlingsForCycle(existingCycle).find((item) => item.id === state.partialBottlingEditId);
         const remainingBeforePartial = Math.max(0, numberValue(plannedOutputInput) - partialBottlingTotalLiters(existingCycle) + (editingPartial ? partialBottlingLiters(editingPartial) : 0));
@@ -8008,7 +8483,6 @@
           formStatus.textContent = `Частичный розлив превышает остаток в ЦКТ на ${formatLiters(partialLiters - remainingBeforePartial)} л`;
           return false;
         }
-        pushUndoSnapshot("сохранение цикла");
         const template = templateByName(document.querySelector("#productInput").value);
         existingCycle.tankId = tankId;
         existingCycle.product = document.querySelector("#productInput").value.trim();
@@ -8031,7 +8505,13 @@
           state.partialBottlingEditId = null;
         }
         if (template) existingCycle.color = template.color || existingCycle.color;
-        savePlan();
+        formStatus.className = "status";
+        formStatus.textContent = "Сохраняем цикл...";
+        const saved = await savePlan();
+        if (!saved) {
+          restorePlanDataSnapshot(beforeSaveSnapshot);
+          return false;
+        }
         logAction("cycle_updated", "cycle", existingCycle.id, existingCycle.product, {
           tank: tanks.find((tank) => tank.id === existingCycle.tankId)?.name || "",
           start: existingCycle.start,
@@ -8066,10 +8546,15 @@
         comments: [],
         color: productTemplate?.color || palette[cycles.length % palette.length]
       };
-      pushUndoSnapshot("создание цикла");
       cycles = cycles.concat(newCycle);
       ensureProductTemplate(newCycle);
-      savePlan();
+      formStatus.className = "status";
+      formStatus.textContent = "Сохраняем цикл...";
+      const saved = await savePlan();
+      if (!saved) {
+        restorePlanDataSnapshot(beforeSaveSnapshot);
+        return false;
+      }
       logAction("cycle_created", "cycle", newCycle.id, newCycle.product, {
         tank: tanks.find((tank) => tank.id === newCycle.tankId)?.name || "",
         start: newCycle.start,
@@ -8110,6 +8595,19 @@
       selectedSummary.innerHTML = `<b>Наименование по ДС</b><span>${escapeHtml(dsName)}</span>${sourceLine}${derivedLine}${canEdit() ? "" : `<div class="readonly-note">Режим просмотра: редактирование недоступно</div>`}`;
     }
 
+    function renderSummaryVisibility() {
+      const expanded = Boolean(state.summaryExpanded);
+      summaryShell.dataset.expanded = expanded ? "true" : "false";
+      summaryToggleButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+      summaryToggleButton.setAttribute("aria-label", expanded ? "Скрыть сводку" : "Показать сводку");
+      summaryToggleButton.dataset.tooltip = expanded ? "Скрыть сводку" : "Показать сводку";
+      if (!expanded) {
+        closeGpPopover();
+        closePeriodModal();
+        closeAttentionPopover();
+      }
+    }
+
     function pickProductionStart(tankId, date) {
       if (!canEdit()) return;
       if (!state.addMode) return;
@@ -8127,6 +8625,28 @@
         formStatus.textContent = "Дата старта выбрана";
       }
       render();
+    }
+
+    function prepareBrewFromGridCell(tankId, date) {
+      clearCycleMultiSelection();
+      state.selectedCycleId = null;
+      state.selectedTankId = null;
+      state.addMode = true;
+      state.commentMode = false;
+      state.panelMode = "cycle";
+      state.packagingSource = null;
+      state.cycleFormSnapshot = null;
+      addMenu.classList.remove("open");
+      cycleForm.reset();
+      document.querySelector("#productInput").value = "";
+      sourceCycleInput.value = "";
+      document.querySelector("#batchInput").value = `B-${String(new Date().getMonth() + 1).padStart(2, "0")}26`;
+      cycleDurationInput.value = "21";
+      stageInput.value = "План";
+      plannedOutputInput.value = "3000";
+      setPackagingFields({ can045: { quantity: 0, liters: 0 }, keg20: { quantity: 0, liters: 0 } });
+      resetPartialBottlingForm();
+      pickProductionStart(tankId, date);
     }
 
     function copySelectedCycle() {
@@ -8215,6 +8735,7 @@
       formStatus.className = "status";
       formStatus.textContent = "Цикл выбран";
       render();
+      scheduleCenterCycleInPlanner(cycle.id);
       rememberCycleFormSnapshot();
     }
 
@@ -8250,10 +8771,40 @@
       render();
     }
 
+    function installNumberInputWheelGuard() {
+      document.addEventListener("wheel", (event) => {
+        const input = event.target.closest?.("input[type='number']");
+        if (!input || input !== document.activeElement) return;
+        event.preventDefault();
+      }, { passive: false });
+    }
+
+    function scrollStatusErrorIntoView(status) {
+      if (!status?.classList?.contains("error") || !status.textContent.trim()) return;
+      status.dataset.attention = "true";
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          status.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          window.setTimeout(() => {
+            if (status.classList.contains("error")) delete status.dataset.attention;
+          }, 1800);
+        });
+      });
+    }
+
+    function installStatusErrorAutoScroll() {
+      document.querySelectorAll(".status").forEach((status) => {
+        const observer = new MutationObserver(() => scrollStatusErrorIntoView(status));
+        observer.observe(status, { attributes: true, childList: true, characterData: true, subtree: true });
+      });
+    }
+
     async function setup() {
       appVersionBadge.textContent = appVersion;
       appVersionBadge.title = `Версия приложения: ${appVersion}`;
       loadTheme();
+      installNumberInputWheelGuard();
+      installStatusErrorAutoScroll();
       renderTankOptions();
       startInput.value = state.start;
       rangeSelect.value = state.rangeMode;
@@ -8261,18 +8812,31 @@
       planner.addEventListener("scroll", hideCommentTooltip);
       if (db || isYandexBackend) {
         try {
-          currentUser = await timedLoadStep("Проверка сохраненной сессии", loadCurrentProfile, "Проверяем сохраненный вход...");
+          currentUser = await timedLoadStep(
+            "Проверка сохраненной сессии",
+            () => withTimeout(loadCurrentProfile(), 4000, "Проверка сохраненного входа заняла слишком много времени"),
+            "Проверяем сохраненный вход..."
+          );
           if (currentUser) {
-            await timedLoadStep("Загрузка пользователей и плана", () => Promise.all([
-              loadProfiles(),
-              loadRemotePlan(setAuthLoading)
-            ]), "Загружаем данные планировщика...");
+            await timedLoadStep(
+              "Загрузка пользователей и плана",
+              () => withTimeout(Promise.all([
+                loadProfiles(),
+                loadRemotePlan(setAuthLoading)
+              ]), 10000, "Загрузка общей базы заняла слишком много времени"),
+              "Загружаем данные планировщика..."
+            );
+            loadUserUiPreferences();
             await timedLoadStep("Подключение realtime", async () => {
               setupRealtime();
               setupPresence();
             }, "Подключаем обновления...");
           }
         } catch (error) {
+          currentUser = null;
+          remoteReady = false;
+          state.siteOrder = [];
+          teardownRealtime();
           loginStatus.className = "status error";
           loginStatus.textContent = `Не удалось подключиться к общей базе: ${error.message}`;
         }
@@ -8342,6 +8906,7 @@
             loadProfiles(),
             loadRemotePlan(setAuthLoading)
           ]), "Загружаем данные планировщика...");
+          loadUserUiPreferences();
           await timedLoadStep("Подключение realtime", async () => {
             setupRealtime();
             setupPresence();
@@ -8373,6 +8938,8 @@
         currentUser = null;
         remoteReady = false;
         undoStack = [];
+        state.siteOrder = [];
+        clearSiteDragState();
         resetForm();
         applyAccessControl();
       });
@@ -8430,6 +8997,11 @@
       themeButton.addEventListener("click", () => {
         const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
         applyTheme(current === "dark" ? "light" : "dark");
+      });
+
+      summaryToggleButton.addEventListener("click", () => {
+        state.summaryExpanded = !state.summaryExpanded;
+        renderSummaryVisibility();
       });
 
       addMenuButton.addEventListener("click", () => {
@@ -8710,6 +9282,10 @@
       cancelSiteButton.addEventListener("click", closeSiteCard);
 
       metricLoadButton.addEventListener("click", () => {
+        if (gpModal.classList.contains("open")) {
+          closeGpPopover();
+          return;
+        }
         state.selectedGpProduct = "";
         renderGpList();
         positionGpPopover();
@@ -8720,6 +9296,10 @@
 
       periodSummaryButton.addEventListener("click", () => {
         if (periodSummaryButton.dataset.active !== "true") return;
+        if (periodModal.classList.contains("open")) {
+          closePeriodModal();
+          return;
+        }
         openPeriodModal();
       });
       closePeriodModalButton.addEventListener("click", closePeriodModal);
@@ -8729,6 +9309,10 @@
 
       attentionButton.addEventListener("click", () => {
         if (attentionButton.dataset.active !== "true") return;
+        if (attentionModal.classList.contains("open")) {
+          closeAttentionPopover();
+          return;
+        }
         openAttentionPopover();
       });
       closeAttentionModalButton.addEventListener("click", closeAttentionPopover);
@@ -8890,9 +9474,9 @@
         render();
       });
 
-      saveCycleChangesButton.addEventListener("click", () => {
+      saveCycleChangesButton.addEventListener("click", async () => {
         if (!requireEdit()) return;
-        if (!saveCycleFromForm()) return;
+        if (!await saveCycleFromForm()) return;
         closeUnsavedModal();
         resetForm();
       });
@@ -8921,31 +9505,49 @@
         commentInput.focus();
       });
 
+      commentDateInput.addEventListener("input", () => {
+        if (!state.pendingComment) return;
+        const cycle = cycles.find((item) => item.id === state.pendingComment.cycleId);
+        if (!cycle) return;
+        const date = commentDateInput.value;
+        state.pendingComment.date = date;
+        state.pickedTankId = cycle.tankId;
+        state.pickedDate = date;
+        renderPickedCell();
+      });
+
       saveCommentButton.addEventListener("click", () => {
         if (!requireEdit()) return;
         const text = commentInput.value.trim();
         if (!text || !state.pendingComment) return;
         const cycle = cycles.find((item) => item.id === state.pendingComment.cycleId);
         if (!cycle) return;
+        const commentDate = commentDateInput.value || state.pendingComment.date;
+        if (!commentDate || commentDate < cycle.start || commentDate > cycle.end) {
+          formStatus.className = "status error";
+          formStatus.textContent = "Дата комментария должна быть в пределах цикла";
+          return;
+        }
         cycle.comments = Array.isArray(cycle.comments) ? cycle.comments : [];
         if (state.pendingComment.mode === "edit") {
           const comment = cycle.comments.find((item) => item.id === state.pendingComment.commentId);
           if (!comment) return;
           pushUndoSnapshot("редактирование комментария");
+          comment.date = commentDate;
           comment.text = text;
           logAction("comment_updated", "comment", comment.id, cycle.product, {
-            start: comment.date
+            start: commentDate
           });
         } else {
           pushUndoSnapshot("создание комментария");
           const comment = {
             id: newId(),
-            date: state.pendingComment.date,
+            date: commentDate,
             text
           };
           cycle.comments.push(comment);
           logAction("comment_created", "comment", comment.id, cycle.product, {
-            start: comment.date
+            start: commentDate
           });
         }
         state.pendingComment = null;
@@ -9122,9 +9724,9 @@
         render();
       });
 
-      cycleForm.addEventListener("submit", (event) => {
+      cycleForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (saveCycleFromForm()) render();
+        if (await saveCycleFromForm()) render();
       });
 
       userForm.addEventListener("submit", async (event) => {
