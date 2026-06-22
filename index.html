@@ -4896,7 +4896,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.8";
+    const appVersion = "v2026.06.22.9";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -4964,6 +4964,7 @@
     let loginAttemptId = 0;
     let taskCreateInProgress = false;
     let loadDiagnostics = [];
+    let loginDiagnostics = [];
     let baseGridRenderKey = "";
 
     function newId() {
@@ -4995,6 +4996,19 @@
       return durationMs;
     }
 
+    function recordLoginStep(label, details = {}) {
+      const record = {
+        time: new Date().toISOString(),
+        label,
+        details,
+        ms: Math.round(perfNow())
+      };
+      loginDiagnostics = loginDiagnostics.concat(record).slice(-60);
+      window.brewPlannerLoginDiagnostics = loginDiagnostics;
+      console.info("[brew-planner-login]", label, details);
+      return record;
+    }
+
     async function timedLoadStep(label, task, statusText = label) {
       setAuthLoading(statusText);
       const startedAt = perfNow();
@@ -5021,6 +5035,7 @@
     }
 
     function failLoginAttempt(attemptId, message) {
+      recordLoginStep("failLoginAttempt", { attemptId, activeAttemptId: loginAttemptId, message });
       if (loginAttemptId !== attemptId) return;
       loginAttemptId += 1;
       loginStatus.className = "status error";
@@ -5128,11 +5143,13 @@
         return Promise.reject(new Error("Не указан адрес Yandex API Gateway в yandexApiBaseUrl"));
       }
       return new Promise((resolve, reject) => {
+        recordLoginStep("xhr-create", { timeoutMs, email });
         const request = new XMLHttpRequest();
         request.open("POST", `${yandexApiBaseUrl.replace(/\/+$/, "")}/auth/login`, true);
         request.timeout = timeoutMs;
         request.setRequestHeader("Content-Type", "application/json");
         request.onload = () => {
+          recordLoginStep("xhr-load", { status: request.status, responseLength: request.responseText?.length || 0 });
           let data = {};
           try {
             data = request.responseText ? JSON.parse(request.responseText) : {};
@@ -5147,8 +5164,15 @@
           error.status = request.status;
           reject(error);
         };
-        request.onerror = () => reject(new Error("Failed to fetch"));
-        request.ontimeout = () => reject(new Error("Сервер авторизации не ответил вовремя"));
+        request.onerror = () => {
+          recordLoginStep("xhr-error");
+          reject(new Error("Failed to fetch"));
+        };
+        request.ontimeout = () => {
+          recordLoginStep("xhr-timeout", { timeoutMs });
+          reject(new Error("Сервер авторизации не ответил вовремя"));
+        };
+        recordLoginStep("xhr-send");
         request.send(JSON.stringify({ email, password }));
       });
     }
@@ -12256,19 +12280,27 @@
           if (loginGuardTimer) clearTimeout(loginGuardTimer);
           loginGuardTimer = null;
         };
+        recordLoginStep("submit-start", { attemptId, backendMode, isYandexBackend });
         setLoginBusy(true);
         if (isYandexBackend) setYandexToken("");
         const email = loginInput.value.trim();
         const password = passwordInput.value;
+        recordLoginStep("credentials-read", { attemptId, email, passwordLength: password.length });
         try {
           if (isYandexBackend) {
             loginGuardTimer = setTimeout(() => {
+              recordLoginStep("guard-fired", { attemptId, activeAttemptId: loginAttemptId });
               failLoginAttempt(attemptId, "Ошибка входа: неверный логин или пароль либо сервер авторизации не ответил вовремя");
             }, 4000);
+            recordLoginStep("guard-started", { attemptId, ms: 4000 });
             const data = await timedLoadStep("Авторизация", () => Promise.race([
               yandexLoginRequest(email, password, 3800),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Сервер авторизации не ответил вовремя")), 3900))
+              new Promise((_, reject) => setTimeout(() => {
+                recordLoginStep("race-timeout", { attemptId });
+                reject(new Error("Сервер авторизации не ответил вовремя"));
+              }, 3900))
             ]), "Проверяем логин и пароль...");
+            recordLoginStep("auth-success", { attemptId, hasToken: Boolean(data.token) });
             clearLoginGuard();
             if (loginAttemptId !== attemptId) return;
             setYandexToken(data.token);
@@ -12277,6 +12309,7 @@
             if (error) throw error;
           }
         } catch (error) {
+          recordLoginStep("auth-catch", { attemptId, message: error?.message || String(error || ""), status: error?.status || null });
           clearLoginGuard();
           if (loginAttemptId !== attemptId) return;
           setLoginBusy(false);
