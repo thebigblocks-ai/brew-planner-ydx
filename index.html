@@ -4887,7 +4887,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.21.8";
+    const appVersion = "v2026.06.22.2";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -5086,7 +5086,9 @@
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
       if (!response.ok) {
-        throw new Error(data.message || data.error || `Ошибка Yandex API: ${response.status}`);
+        const error = new Error(data.message || data.error || `Ошибка Yandex API: ${response.status}`);
+        error.status = response.status;
+        throw error;
       }
       return data;
     }
@@ -5465,7 +5467,7 @@
 
     async function loadActionLogs() {
       if (isYandexBackend) {
-        const data = await yandexRequest("/logs");
+        const data = await yandexRequest("/logs", { timeoutMs: 8000 });
         actionLogs = Array.isArray(data.logs) ? data.logs : [];
         pruneLocalActionLogs();
         return;
@@ -5534,7 +5536,7 @@
 
     async function loadProfiles() {
       if (isYandexBackend) {
-        const data = await yandexRequest("/users");
+        const data = await yandexRequest("/users", { timeoutMs: 8000 });
         users = (data.users || []).map((user) => ({
           id: user.id,
           email: user.email || user.login,
@@ -5601,7 +5603,7 @@
     async function loadCurrentProfile() {
       if (isYandexBackend) {
         if (!yandexToken()) return null;
-        const data = await yandexRequest("/auth/me");
+        const data = await yandexRequest("/auth/me", { timeoutMs: 6000 });
         return data.user ? {
           id: data.user.id,
           email: data.user.email || data.user.login,
@@ -5703,7 +5705,7 @@
       supportsSourceCycles = true;
       supportsActionLogs = true;
       supportsTemplateArchive = true;
-      const data = await yandexRequest("/plan");
+      const data = await yandexRequest("/plan", { timeoutMs: 8000 });
       applyPlanData(data.plan || {});
       if (!restoringUndo) {
         undoStack = [];
@@ -5728,6 +5730,7 @@
           saveQueued = false;
           const data = await yandexRequest("/plan", {
             method: "PUT",
+            timeoutMs: 10000,
             body: { plan: clonePlanData() }
           });
           if (data.plan && !saveQueued) applyPlanData(data.plan);
@@ -9037,12 +9040,12 @@
       deleteModal.classList.add("open");
     }
 
-    function savePartialBottlingFromForm() {
+    async function savePartialBottlingFromForm() {
       if (!requireEdit()) return false;
       const cycle = cycles.find((item) => item.id === state.selectedCycleId);
       if (!cycle) {
         formStatus.className = "status error";
-        formStatus.textContent = "Сначала выберите существующий цикл";
+        formStatus.textContent = "Сначала сохраните производственный цикл, затем фиксируйте частичный розлив";
         return false;
       }
       if (!partialBottlingFormHasValue()) {
@@ -9063,11 +9066,20 @@
       }
 
       const editing = Boolean(previous);
+      const beforeSaveSnapshot = clonePlanData();
       pushUndoSnapshot(editing ? "редактирование частичного розлива" : "создание частичного розлива");
       cycle.partialBottlings = editing
         ? currentItems.map((item) => item.id === previous.id ? partial : item)
         : currentItems.concat(partial);
-      savePlan();
+      savePartialBottlingButton.disabled = true;
+      savePartialBottlingText.textContent = "Сохраняем...";
+      const saved = await savePlan();
+      if (!saved) {
+        restorePlanDataSnapshot(beforeSaveSnapshot);
+        savePartialBottlingButton.disabled = false;
+        savePartialBottlingText.textContent = editing ? "Сохранить изменения" : "Сохранить частичный розлив";
+        return false;
+      }
       logAction(editing ? "partial_bottling_updated" : "partial_bottling_created", "cycle", cycle.id, cycle.product, {
         date: shortNumericDateFormatter.format(parseDate(partial.date)),
         volume: `${formatLiters(partialLiters)} л`
@@ -9079,6 +9091,7 @@
       rememberCycleFormSnapshot();
       formStatus.className = "status";
       formStatus.textContent = editing ? "Частичный розлив изменен" : "Частичный розлив сохранен";
+      savePartialBottlingButton.disabled = false;
       render();
       return true;
     }
@@ -12115,6 +12128,7 @@
             }, "Подключаем обновления...");
           }
         } catch (error) {
+          if (isYandexBackend) setYandexToken("");
           currentUser = null;
           remoteReady = false;
           state.siteOrder = [];
@@ -12151,12 +12165,14 @@
           return;
         }
         setLoginBusy(true);
+        if (isYandexBackend) setYandexToken("");
         const email = loginInput.value.trim();
         const password = passwordInput.value;
         try {
           if (isYandexBackend) {
             const data = await timedLoadStep("Авторизация", () => yandexRequest("/auth/login", {
               method: "POST",
+              timeoutMs: 8000,
               token: "",
               body: { email, password }
             }), "Проверяем логин и пароль...");
@@ -12204,6 +12220,10 @@
           applyAccessControl();
           render();
         } catch (profileError) {
+          if (isYandexBackend) setYandexToken("");
+          currentUser = null;
+          remoteReady = false;
+          teardownRealtime();
           setLoginBusy(false);
           loginStatus.className = "status error";
           loginStatus.textContent = `Не удалось загрузить профиль: ${profileError.message}`;
