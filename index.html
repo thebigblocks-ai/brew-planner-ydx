@@ -4887,7 +4887,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.4";
+    const appVersion = "v2026.06.22.6";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -5080,6 +5080,14 @@
           signal: controller.signal,
           body: options.body === undefined ? undefined : JSON.stringify(options.body)
         });
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
+        if (!response.ok) {
+          const error = new Error(data.message || data.error || `Ошибка Yandex API: ${response.status}`);
+          error.status = response.status;
+          throw error;
+        }
+        return data;
       } catch (error) {
         if (error?.name === "AbortError") {
           throw new Error(`Yandex API не ответил за ${Math.round(timeoutMs / 1000)} сек: ${path}`);
@@ -5088,14 +5096,36 @@
       } finally {
         clearTimeout(timeoutId);
       }
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-      if (!response.ok) {
-        const error = new Error(data.message || data.error || `Ошибка Yandex API: ${response.status}`);
-        error.status = response.status;
-        throw error;
+    }
+
+    function yandexLoginRequest(email, password, timeoutMs = 6000) {
+      if (!yandexApiBaseUrl) {
+        return Promise.reject(new Error("Не указан адрес Yandex API Gateway в yandexApiBaseUrl"));
       }
-      return data;
+      return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.open("POST", `${yandexApiBaseUrl.replace(/\/+$/, "")}/auth/login`, true);
+        request.timeout = timeoutMs;
+        request.setRequestHeader("Content-Type", "application/json");
+        request.onload = () => {
+          let data = {};
+          try {
+            data = request.responseText ? JSON.parse(request.responseText) : {};
+          } catch {
+            data = {};
+          }
+          if (request.status >= 200 && request.status < 300) {
+            resolve(data);
+            return;
+          }
+          const error = new Error(data.message || data.error || `Ошибка Yandex API: ${request.status}`);
+          error.status = request.status;
+          reject(error);
+        };
+        request.onerror = () => reject(new Error("Failed to fetch"));
+        request.ontimeout = () => reject(new Error("Сервер авторизации не ответил вовремя"));
+        request.send(JSON.stringify({ email, password }));
+      });
     }
 
     function clearAuthLoading() {
@@ -6362,6 +6392,7 @@
       setEditable(Array.from(cycleForm.querySelectorAll("input, select, textarea, button")), editable);
       partialBottlingToggle.disabled = !editable || !state.selectedCycleId;
       savePartialBottlingButton.disabled = !editable || !state.selectedCycleId;
+      updatePartialBottlingSaveState();
       setEditable(Array.from(cycleProcessPane.querySelectorAll("input, select, textarea, button")), editable);
       setEditable([processBrewTab, processFermentationTab], authenticated && Boolean(state.selectedCycleId) && featureEnabled("cycleProcess"));
       fermentationChartButton.disabled = !authenticated || !state.selectedCycleId || !featureEnabled("cycleProcess");
@@ -8765,9 +8796,22 @@
       };
     }
 
+    function partialBottlingHasPositiveVolume() {
+      return numberValue(partialCanQtyInput) > 0
+        || numberValue(partialCanLitersInput) > 0
+        || numberValue(partialKegLitersInput) > 0
+        || numberValue(partialKegQtyInput) > 0;
+    }
+
     function partialBottlingFormHasValue() {
-      const partial = partialBottlingFromForm();
-      return Number(partial.can045.liters || 0) > 0 || Number(partial.keg20.liters || 0) > 0;
+      return partialBottlingHasPositiveVolume();
+    }
+
+    function updatePartialBottlingSaveState() {
+      if (!savePartialBottlingButton) return;
+      const enabled = canEdit() && Boolean(state.selectedCycleId) && partialBottlingHasPositiveVolume();
+      savePartialBottlingButton.disabled = !enabled;
+      savePartialBottlingButton.dataset.tooltip = enabled ? "Сохранить частичный розлив" : "Укажите объем частичного розлива";
     }
 
     function setPartialBottlingFields(partial) {
@@ -8776,6 +8820,7 @@
       partialCanLitersInput.value = rounded(partial?.can045?.liters || 0);
       partialKegLitersInput.value = rounded(partial?.keg20?.liters || 0);
       partialKegQtyInput.value = roundedWhole(partial?.keg20?.quantity || 0);
+      updatePartialBottlingSaveState();
     }
 
     function packagingOverage() {
@@ -9049,15 +9094,16 @@
 
     async function savePartialBottlingFromForm() {
       if (!requireEdit()) return false;
+      if (!partialBottlingHasPositiveVolume()) {
+        updatePartialBottlingSaveState();
+        formStatus.className = "status error";
+        formStatus.textContent = "Укажите объем частичного розлива";
+        return false;
+      }
       const cycle = cycles.find((item) => item.id === state.selectedCycleId);
       if (!cycle) {
         formStatus.className = "status error";
         formStatus.textContent = "Сначала сохраните производственный цикл, затем фиксируйте частичный розлив";
-        return false;
-      }
-      if (!partialBottlingFormHasValue()) {
-        formStatus.className = "status error";
-        formStatus.textContent = "Укажите объем частичного розлива";
         return false;
       }
       const partial = partialBottlingFromForm();
@@ -9146,6 +9192,7 @@
         partialKegLitersInput.value = rounded(kegLiters);
         partialKegQtyInput.value = roundedWhole(kegLiters / 20);
       }
+      updatePartialBottlingSaveState();
     }
 
     function cycleFormSnapshot() {
@@ -12197,12 +12244,7 @@
               loginStatus.className = "status error";
               loginStatus.textContent = "Ошибка входа: неверный логин или пароль либо сервер авторизации не ответил вовремя";
             }, 6500);
-            const data = await timedLoadStep("Авторизация", () => withTimeout(yandexRequest("/auth/login", {
-              method: "POST",
-              timeoutMs: 6000,
-              token: "",
-              body: { email, password }
-            }), 7000, "Сервер авторизации не ответил вовремя"), "Проверяем логин и пароль...");
+            const data = await timedLoadStep("Авторизация", () => yandexLoginRequest(email, password, 6000), "Проверяем логин и пароль...");
             clearLoginGuard();
             if (loginAttemptId !== attemptId || loginTimedOut) return;
             setYandexToken(data.token);
@@ -12681,11 +12723,18 @@
           setPartialBottlingFields(null);
           savePartialBottlingText.textContent = "Сохранить частичный розлив";
         }
+        updatePartialBottlingSaveState();
         rememberCycleFormSnapshot();
       });
       savePartialBottlingButton.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (!partialBottlingHasPositiveVolume()) {
+          updatePartialBottlingSaveState();
+          formStatus.className = "status error";
+          formStatus.textContent = "Укажите объем частичного розлива";
+          return;
+        }
         try {
           await savePartialBottlingFromForm();
         } catch (error) {
