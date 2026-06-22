@@ -2918,6 +2918,14 @@
       color: var(--muted);
     }
 
+    .login-version {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: center;
+    }
+
     .status.loading {
       display: flex;
       align-items: center;
@@ -4017,8 +4025,9 @@
           <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </label>
-      <button class="primary" type="submit">Войти</button>
+      <button class="primary" id="loginSubmitButton" type="submit">Войти</button>
       <div class="status" id="loginStatus"></div>
+      <small class="login-version" id="loginVersionBadge"></small>
     </form>
   </div>
 
@@ -4887,7 +4896,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.6";
+    const appVersion = "v2026.06.22.7";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -6125,6 +6134,7 @@
 
     const grid = document.querySelector("#grid");
     const appVersionBadge = document.querySelector("#appVersionBadge");
+    const loginVersionBadge = document.querySelector("#loginVersionBadge");
     const workspace = document.querySelector("#workspace");
     const planner = document.querySelector("#planner");
     const summaryShell = document.querySelector("#summaryShell");
@@ -12156,6 +12166,7 @@
     async function setup() {
       appVersionBadge.textContent = appVersion;
       appVersionBadge.title = `Версия приложения: ${appVersion}`;
+      loginVersionBadge.textContent = appVersion;
       loadTheme();
       installNumberInputWheelGuard();
       installStatusErrorAutoScroll();
@@ -12237,8 +12248,11 @@
         try {
           if (isYandexBackend) {
             loginGuardTimer = setTimeout(() => {
-              if (loginAttemptId !== attemptId || currentUser) return;
+              if (loginAttemptId !== attemptId) return;
               loginTimedOut = true;
+              currentUser = null;
+              remoteReady = false;
+              teardownRealtime();
               setYandexToken("");
               setLoginBusy(false);
               loginStatus.className = "status error";
