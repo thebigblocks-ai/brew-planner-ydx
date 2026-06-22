@@ -4887,7 +4887,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.2";
+    const appVersion = "v2026.06.22.4";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -4952,6 +4952,7 @@
     let pendingDelete = null;
     let pendingPasswordUserId = null;
     let pendingProfileUserId = null;
+    let loginAttemptId = 0;
     let taskCreateInProgress = false;
     let loadDiagnostics = [];
     let baseGridRenderKey = "";
@@ -5017,8 +5018,12 @@
     }
 
     function loginErrorMessage(error) {
+      if (error?.status === 401) return "Неверный логин или пароль";
       const message = error?.message || String(error || "");
       const normalized = message.toLowerCase();
+      if (normalized.includes("invalid login") || normalized.includes("invalid password")) {
+        return "Неверный логин или пароль";
+      }
       const isNetworkFailure = normalized.includes("load failed")
         || normalized.includes("failed to fetch")
         || normalized.includes("networkerror")
@@ -6355,6 +6360,8 @@
       copyCycleButton.disabled = !editable || !state.selectedCycleId;
       deleteCycleButton.disabled = !editable || !state.selectedCycleId;
       setEditable(Array.from(cycleForm.querySelectorAll("input, select, textarea, button")), editable);
+      partialBottlingToggle.disabled = !editable || !state.selectedCycleId;
+      savePartialBottlingButton.disabled = !editable || !state.selectedCycleId;
       setEditable(Array.from(cycleProcessPane.querySelectorAll("input, select, textarea, button")), editable);
       setEditable([processBrewTab, processFermentationTab], authenticated && Boolean(state.selectedCycleId) && featureEnabled("cycleProcess"));
       fermentationChartButton.disabled = !authenticated || !state.selectedCycleId || !featureEnabled("cycleProcess");
@@ -9073,7 +9080,13 @@
         : currentItems.concat(partial);
       savePartialBottlingButton.disabled = true;
       savePartialBottlingText.textContent = "Сохраняем...";
-      const saved = await savePlan();
+      let saved = false;
+      try {
+        saved = await savePlan();
+      } catch (error) {
+        formStatus.className = "status error";
+        formStatus.textContent = `Не удалось сохранить частичный розлив: ${error.message}`;
+      }
       if (!saved) {
         restorePlanDataSnapshot(beforeSaveSnapshot);
         savePartialBottlingButton.disabled = false;
@@ -9136,8 +9149,7 @@
     }
 
     function cycleFormSnapshot() {
-      const partialBottlingOpen = !partialBottlingFields.hidden;
-      const partialBottling = partialBottlingOpen || partialBottlingFormHasValue()
+      const partialBottling = partialBottlingFormHasValue()
         ? {
           date: partialBottlingDateInput.value || "",
           canQty: numberValue(partialCanQtyInput),
@@ -12164,31 +12176,53 @@
           loginStatus.textContent = "База не подключена";
           return;
         }
+        const attemptId = ++loginAttemptId;
+        let loginTimedOut = false;
+        let loginGuardTimer = null;
+        const clearLoginGuard = () => {
+          if (loginGuardTimer) clearTimeout(loginGuardTimer);
+          loginGuardTimer = null;
+        };
         setLoginBusy(true);
         if (isYandexBackend) setYandexToken("");
         const email = loginInput.value.trim();
         const password = passwordInput.value;
         try {
           if (isYandexBackend) {
-            const data = await timedLoadStep("Авторизация", () => yandexRequest("/auth/login", {
+            loginGuardTimer = setTimeout(() => {
+              if (loginAttemptId !== attemptId || currentUser) return;
+              loginTimedOut = true;
+              setYandexToken("");
+              setLoginBusy(false);
+              loginStatus.className = "status error";
+              loginStatus.textContent = "Ошибка входа: неверный логин или пароль либо сервер авторизации не ответил вовремя";
+            }, 6500);
+            const data = await timedLoadStep("Авторизация", () => withTimeout(yandexRequest("/auth/login", {
               method: "POST",
-              timeoutMs: 8000,
+              timeoutMs: 6000,
               token: "",
               body: { email, password }
-            }), "Проверяем логин и пароль...");
+            }), 7000, "Сервер авторизации не ответил вовремя"), "Проверяем логин и пароль...");
+            clearLoginGuard();
+            if (loginAttemptId !== attemptId || loginTimedOut) return;
             setYandexToken(data.token);
           } else {
             const { error } = await timedLoadStep("Авторизация", () => db.auth.signInWithPassword({ email, password }), "Проверяем логин и пароль...");
             if (error) throw error;
           }
         } catch (error) {
+          clearLoginGuard();
+          if (loginAttemptId !== attemptId) return;
+          if (loginTimedOut) return;
           setLoginBusy(false);
           loginStatus.className = "status error";
           loginStatus.textContent = `Ошибка входа: ${loginErrorMessage(error)}`;
           return;
         }
         try {
+          if (loginAttemptId !== attemptId) return;
           currentUser = await timedLoadStep("Загрузка профиля", loadCurrentProfile, "Загружаем профиль пользователя...");
+          if (loginAttemptId !== attemptId) return;
           if (!currentUser) {
             if (isYandexBackend) {
               setYandexToken("");
@@ -12204,11 +12238,13 @@
             loadProfiles(),
             loadRemotePlan(setAuthLoading)
           ]), "Загружаем данные планировщика...");
+          if (loginAttemptId !== attemptId) return;
           loadUserUiPreferences();
           await timedLoadStep("Подключение realtime", async () => {
             setupRealtime();
             setupPresence();
           }, "Подключаем обновления...");
+          if (loginAttemptId !== attemptId) return;
           loginStatus.className = "status";
           loginStatus.textContent = "";
           loginForm.reset();
@@ -12647,8 +12683,17 @@
         }
         rememberCycleFormSnapshot();
       });
-      savePartialBottlingButton.addEventListener("click", () => {
-        savePartialBottlingFromForm();
+      savePartialBottlingButton.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          await savePartialBottlingFromForm();
+        } catch (error) {
+          savePartialBottlingButton.disabled = false;
+          savePartialBottlingText.textContent = state.partialBottlingEditId ? "Сохранить изменения" : "Сохранить частичный розлив";
+          formStatus.className = "status error";
+          formStatus.textContent = `Не удалось сохранить частичный розлив: ${error.message}`;
+        }
       });
       partialCanQtyInput.addEventListener("input", () => syncPartialPackagingFrom("canQty"));
       partialKegLitersInput.addEventListener("input", () => syncPartialPackagingFrom("kegLiters"));
@@ -12676,6 +12721,23 @@
         state.selectedTankId = null;
         state.packagingSource = null;
         state.panelMode = state.addMode ? "cycle" : "hidden";
+        if (state.addMode) {
+          state.cycleFormSnapshot = null;
+          state.cycleTab = "production";
+          state.processTab = "brew";
+          state.taskEditId = null;
+          state.pendingTaskFileTaskId = null;
+          cycleForm.reset();
+          document.querySelector("#productInput").value = "";
+          sourceCycleInput.value = "";
+          document.querySelector("#batchInput").value = `B-${String(new Date().getMonth() + 1).padStart(2, "0")}26`;
+          cycleDurationInput.value = "21";
+          stageInput.value = "План";
+          plannedOutputInput.value = "3000";
+          setPackagingFields({ can045: { quantity: 0, liters: 0 }, keg20: { quantity: 0, liters: 0 } });
+          resetPartialBottlingForm();
+          syncEndDate();
+        }
         addMenu.classList.remove("open");
         formStatus.className = "status";
         formStatus.textContent = state.addMode ? "Выберите дату в строке нужной ЦКТ" : "";
