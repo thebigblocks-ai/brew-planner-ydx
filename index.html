@@ -4896,7 +4896,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.9";
+    const appVersion = "v2026.06.22.10";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -5034,13 +5034,24 @@
       });
     }
 
+    function showLoginError(message) {
+      document.body.dataset.auth = "locked";
+      loginStatus.className = "status error";
+      loginStatus.innerHTML = "";
+      loginStatus.textContent = message;
+      setLoginBusy(false);
+      passwordInput.disabled = false;
+      loginInput.disabled = false;
+      passwordToggle.disabled = false;
+      loginForm.querySelector("button[type='submit']").disabled = false;
+      recordLoginStep("login-error-rendered", { message, disabled: loginForm.querySelector("button[type='submit']").disabled });
+    }
+
     function failLoginAttempt(attemptId, message) {
       recordLoginStep("failLoginAttempt", { attemptId, activeAttemptId: loginAttemptId, message });
       if (loginAttemptId !== attemptId) return;
       loginAttemptId += 1;
-      loginStatus.className = "status error";
-      loginStatus.textContent = message;
-      setLoginBusy(false);
+      showLoginError(message);
       try {
         currentUser = null;
         remoteReady = false;
@@ -12198,6 +12209,7 @@
 
     function installStatusErrorAutoScroll() {
       document.querySelectorAll(".status").forEach((status) => {
+        if (status.id === "loginStatus") return;
         const observer = new MutationObserver(() => scrollStatusErrorIntoView(status));
         observer.observe(status, { attributes: true, childList: true, characterData: true, subtree: true });
       });
@@ -12312,9 +12324,7 @@
           recordLoginStep("auth-catch", { attemptId, message: error?.message || String(error || ""), status: error?.status || null });
           clearLoginGuard();
           if (loginAttemptId !== attemptId) return;
-          setLoginBusy(false);
-          loginStatus.className = "status error";
-          loginStatus.textContent = `Ошибка входа: ${loginErrorMessage(error)}`;
+          showLoginError(`Ошибка входа: ${loginErrorMessage(error)}`);
           return;
         }
         try {
