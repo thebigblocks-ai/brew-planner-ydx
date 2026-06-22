@@ -4896,7 +4896,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.7";
+    const appVersion = "v2026.06.22.8";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -5018,6 +5018,22 @@
       loginForm.querySelectorAll("input, button").forEach((element) => {
         element.disabled = Boolean(busy);
       });
+    }
+
+    function failLoginAttempt(attemptId, message) {
+      if (loginAttemptId !== attemptId) return;
+      loginAttemptId += 1;
+      loginStatus.className = "status error";
+      loginStatus.textContent = message;
+      setLoginBusy(false);
+      try {
+        currentUser = null;
+        remoteReady = false;
+        if (isYandexBackend) setYandexToken("");
+        teardownRealtime();
+      } catch (error) {
+        console.warn("[brew-planner] Не удалось полностью очистить зависший вход", error);
+      }
     }
 
     function setAuthLoading(message) {
@@ -12235,7 +12251,6 @@
           return;
         }
         const attemptId = ++loginAttemptId;
-        let loginTimedOut = false;
         let loginGuardTimer = null;
         const clearLoginGuard = () => {
           if (loginGuardTimer) clearTimeout(loginGuardTimer);
@@ -12248,19 +12263,14 @@
         try {
           if (isYandexBackend) {
             loginGuardTimer = setTimeout(() => {
-              if (loginAttemptId !== attemptId) return;
-              loginTimedOut = true;
-              currentUser = null;
-              remoteReady = false;
-              teardownRealtime();
-              setYandexToken("");
-              setLoginBusy(false);
-              loginStatus.className = "status error";
-              loginStatus.textContent = "Ошибка входа: неверный логин или пароль либо сервер авторизации не ответил вовремя";
-            }, 6500);
-            const data = await timedLoadStep("Авторизация", () => yandexLoginRequest(email, password, 6000), "Проверяем логин и пароль...");
+              failLoginAttempt(attemptId, "Ошибка входа: неверный логин или пароль либо сервер авторизации не ответил вовремя");
+            }, 4000);
+            const data = await timedLoadStep("Авторизация", () => Promise.race([
+              yandexLoginRequest(email, password, 3800),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Сервер авторизации не ответил вовремя")), 3900))
+            ]), "Проверяем логин и пароль...");
             clearLoginGuard();
-            if (loginAttemptId !== attemptId || loginTimedOut) return;
+            if (loginAttemptId !== attemptId) return;
             setYandexToken(data.token);
           } else {
             const { error } = await timedLoadStep("Авторизация", () => db.auth.signInWithPassword({ email, password }), "Проверяем логин и пароль...");
@@ -12269,7 +12279,6 @@
         } catch (error) {
           clearLoginGuard();
           if (loginAttemptId !== attemptId) return;
-          if (loginTimedOut) return;
           setLoginBusy(false);
           loginStatus.className = "status error";
           loginStatus.textContent = `Ошибка входа: ${loginErrorMessage(error)}`;
