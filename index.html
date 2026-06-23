@@ -4896,7 +4896,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.22.10";
+    const appVersion = "v2026.06.23.1";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -8889,6 +8889,13 @@
       return Math.max(0, packagingLitersTotal() - plannedOutput);
     }
 
+    function packagingFormHasValue() {
+      return numberValue(canQtyInput) > 0
+        || numberValue(canLitersInput) > 0
+        || numberValue(kegLitersInput) > 0
+        || numberValue(kegQtyInput) > 0;
+    }
+
     function showPackagingWarning() {
       const overage = packagingOverage();
       if (!overage) {
@@ -9422,12 +9429,11 @@
       const kegLitersValue = Math.max(0, numberValue(kegLitersInput));
 
       if (source === "plannedOutput") {
-        if (state.packagingSource === "kegLiters" && kegLitersValue > 0) {
-          syncPackagingFrom("kegLiters");
-        } else if (canQty > 0) {
-          syncPackagingFrom("canQty");
-        } else if (kegLitersValue > 0) {
-          syncPackagingFrom("kegLiters");
+        if (packagingFormHasValue()) {
+          state.packagingSource = null;
+          setPackagingFields({ can045: { quantity: 0, liters: 0 }, keg20: { quantity: 0, liters: 0 } });
+          formStatus.className = "status";
+          formStatus.textContent = "Распределение по таре очищено. Укажите его заново для нового планового выхода";
         }
         return;
       }
