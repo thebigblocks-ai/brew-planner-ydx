@@ -2568,6 +2568,28 @@
       font-weight: 750;
     }
 
+    .packaging-remaining {
+      display: grid;
+      gap: 4px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--soft-bg);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .packaging-remaining[hidden] {
+      display: none;
+    }
+
+    .packaging-remaining span {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
     .partial-bottling-log {
       display: grid;
       gap: 1px;
@@ -4332,7 +4354,7 @@
               </div>
               <div class="two">
                 <label class="field">
-                  <span>Кега 20 л, литры</span>
+                  <span>Кега 20 л, л</span>
                   <input id="kegLitersInput" type="number" min="0" step="0.01" value="0">
                 </label>
                 <label class="field">
@@ -4340,6 +4362,7 @@
                   <input id="kegQtyInput" type="number" min="0" step="1" value="0" readonly>
                 </label>
               </div>
+              <div class="packaging-remaining" id="packagingRemainingSummary" hidden></div>
               <button class="primary" id="submitCycleButton" type="submit">
                 <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                 <span id="submitCycleText">Добавить цикл</span>
@@ -4365,7 +4388,7 @@
                 </div>
                 <div class="two">
                   <label class="field">
-                    <span>Кега 20 л, литры</span>
+                    <span>Кега 20 л, л</span>
                     <input id="partialKegLitersInput" type="number" min="0" step="0.01" value="0">
                   </label>
                   <label class="field">
@@ -4896,7 +4919,7 @@
     ];
 
     const palette = ["#FF8B00", "#b45309", "#2563eb", "#15803d", "#be123c", "#7c3aed", "#475569"];
-    const appVersion = "v2026.06.23.1";
+    const appVersion = "v2026.06.25.1";
     const maxTaskAttachmentSize = 5 * 1024 * 1024;
     const maxTaskAttachments = 5;
     const storageKey = "production-planner-v1";
@@ -6236,6 +6259,7 @@
     const canLitersInput = document.querySelector("#canLitersInput");
     const kegQtyInput = document.querySelector("#kegQtyInput");
     const kegLitersInput = document.querySelector("#kegLitersInput");
+    const packagingRemainingSummary = document.querySelector("#packagingRemainingSummary");
     const partialBottlingToggle = document.querySelector("#partialBottlingToggle");
     const partialBottlingFields = document.querySelector("#partialBottlingFields");
     const partialBottlingDateInput = document.querySelector("#partialBottlingDateInput");
@@ -8952,6 +8976,27 @@
       };
     }
 
+    function updatePackagingRemainingSummary() {
+      if (!packagingRemainingSummary) return;
+      const cycle = cycles.find((item) => item.id === state.selectedCycleId);
+      const partialBottlings = partialBottlingsForCycle(cycle || {});
+      const plannedOutput = Math.max(0, numberValue(plannedOutputInput));
+      const plannedPackaging = packagingFromForm();
+      if (!cycle || plannedOutput <= 0 || packagingLitersTotal(plannedPackaging) <= 0 || !partialBottlings.length) {
+        packagingRemainingSummary.hidden = true;
+        packagingRemainingSummary.innerHTML = "";
+        return;
+      }
+      const partial = packagingTotalsFromPartialBottlings(cycle);
+      const remainingCanQty = Math.max(0, Math.round(Number(plannedPackaging.can045.quantity || 0) - Number(partial.can045.quantity || 0)));
+      const remainingKegLiters = Math.max(0, Number(plannedPackaging.keg20.liters || 0) - Number(partial.keg20.liters || 0));
+      packagingRemainingSummary.hidden = false;
+      packagingRemainingSummary.innerHTML = `
+        <span>Осталось разлить</span>
+        <b>Банка: ${formatNumber(remainingCanQty)} шт / Кега 20 л: ${formatLiters(remainingKegLiters)} л</b>
+      `;
+    }
+
     function partialBottlingPackaging(item) {
       return {
         can045: {
@@ -9068,6 +9113,7 @@
       canLitersInput.value = rounded(packaging.can045.liters || 0);
       kegLitersInput.value = rounded(packaging.keg20.liters || 0);
       kegQtyInput.value = roundedWhole(packaging.keg20.quantity || 0);
+      updatePackagingRemainingSummary();
     }
 
     function resetPartialBottlingForm(cycle = null) {
@@ -9131,6 +9177,7 @@
       partialBottlingSummary.querySelectorAll("[data-delete-partial]").forEach((button) => {
         button.addEventListener("click", () => confirmDeletePartialBottling(button.dataset.deletePartial));
       });
+      updatePackagingRemainingSummary();
     }
 
     function editPartialBottling(partialId) {
@@ -9458,6 +9505,7 @@
         canQtyInput.value = roundedWhole(canLiters / 0.45);
       }
       showPackagingWarning();
+      updatePackagingRemainingSummary();
     }
 
     function overlapsCycle(tankId, start, end, excludeId = null) {
@@ -11531,6 +11579,7 @@
       actionLogButton.classList.toggle("active", state.panelMode === "log");
       featuresButton.classList.toggle("active", state.panelMode === "features");
       updateEditorState();
+      updatePackagingRemainingSummary();
       renderFilterOptions();
       renderBaseGrid(dates);
       renderCycles();
